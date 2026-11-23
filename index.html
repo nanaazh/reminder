@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MagangHub Daily Activity Assistant</title>
+<meta name="description" content="Asisten harian peserta magang MagangHub Kemnaker di BKKBN Kecamatan Tambaksari: catatan aktivitas, generator narasi presensi, dan pengingat presensi.">
+<meta name="theme-color" content="#14274e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{--navy:#14274e;--navy-2:#21407a;--blue:#8fb4e8;--blue-soft:#e6effb;--bg:#f3f7fd;--pink:#f4cddb;--pink-soft:#fdeef3;--pink-strong:#c9708f;--ink:#1c2740;--muted:#5d6b86;--line:#dde6f3;--ok:#1b7f55;--ok-bg:#e3f5ec;--bad:#b4401c;--bad-bg:#fdebe4;--radius:20px;--shadow:0 8px 28px rgba(20,39,78,.08)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:linear-gradient(180deg,var(--bg),#fff 70%);color:var(--ink);line-height:1.55;padding-bottom:calc(86px + env(safe-area-inset-bottom));min-height:100vh}
+h1,h2,h3{margin:0;line-height:1.25;color:var(--navy)}
+h3{font-size:1.02rem;margin-bottom:12px}
+p{margin:0 0 10px}
+.muted{color:var(--muted);font-size:.92rem}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+
+/* hero */
+.hero{background:radial-gradient(circle at 88% 10%,rgba(244,205,219,.45),transparent 45%),linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:calc(26px + env(safe-area-inset-top)) 0 58px}
+.hero .eyebrow{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:#c9d9f3;margin-bottom:8px}
+.hero h1{color:#fff;font-size:clamp(1.5rem,5vw,2.3rem);letter-spacing:-.01em}
+.hero .by{margin-top:10px;font-size:.85rem;color:#dbe6f8}
+.hero .by b{color:var(--pink)}
+
+/* nav */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:2px;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+.tabs button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit;font-size:11px;font-weight:600;color:var(--muted);padding:7px 2px;border-radius:12px;cursor:pointer;transition:background .2s,color .2s}
+.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tabs button.on{color:var(--navy);background:var(--blue-soft)}
+main{max-width:1040px;margin:-34px auto 0;padding:0 16px}
+
+.view{display:none}
+.view.on{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* cards */
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+.grid{display:grid;gap:16px}
+.grid>.card{margin-bottom:0}
+.g2{grid-template-columns:1fr}
+.greet{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(135deg,#fff,var(--pink-soft))}
+.greet h2{font-size:1.45rem;margin:4px 0 2px}
+.clock{text-align:right}
+.clock span{display:block;font-size:2.2rem;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.clock small{color:var(--muted)}
+.link{border:0;background:none;color:var(--navy-2);font:inherit;font-size:.85rem;text-decoration:underline;padding:0;cursor:pointer}
+
+.days{display:flex;gap:6px;margin-bottom:12px}
+.days span{flex:1;text-align:center;padding:8px 0;border-radius:12px;background:var(--blue-soft);color:var(--navy-2);font-weight:600;font-size:.85rem}
+.days span.today{background:var(--navy);color:#fff}
+.pill{display:inline-block;padding:3px 12px;border-radius:99px;font-size:.8rem;font-weight:700}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.off{background:#eceff5;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.stat{background:var(--blue-soft);border-radius:16px;padding:12px 14px}
+.stat:nth-child(even){background:var(--pink-soft)}
+.stat b{display:block;font-size:1.5rem;color:var(--navy);line-height:1.2}
+.stat span{font-size:.8rem;color:var(--muted)}
+.shortcuts{display:grid;gap:10px}
+.today-list{margin:8px 0 0;padding-left:20px}
+
+/* buttons / forms */
+.btn{font-family:inherit;font-size:.95rem;font-weight:600;border:1px solid transparent;border-radius:14px;padding:11px 18px;cursor:pointer;transition:transform .15s,box-shadow .2s,background .2s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--navy);color:#fff;box-shadow:0 6px 16px rgba(20,39,78,.25)}
+.btn.primary:hover{background:var(--navy-2)}
+.btn.soft{background:var(--blue-soft);color:var(--navy)}
+.btn.soft:hover{background:#d7e6fa}
+.btn.pink{background:var(--pink);color:#6b2742}
+.btn.pink:hover{background:#efbccf}
+.btn.ghost{background:#fff;border-color:var(--line);color:var(--navy)}
+.btn.danger{background:var(--bad-bg);color:var(--bad)}
+.btn.sm{padding:7px 12px;font-size:.84rem;border-radius:11px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{display:block;font-weight:600;font-size:.9rem;margin:14px 0 6px;color:var(--navy)}
+label small{font-weight:400;color:var(--muted)}
+input[type=text],input[type=date],input[type=time],input[type=url],input[type=search],select,textarea{width:100%;font-family:inherit;font-size:1rem;color:var(--ink);background:#fbfdff;border:1.5px solid var(--line);border-radius:14px;padding:11px 14px;transition:border-color .2s,box-shadow .2s}
+textarea{resize:vertical;min-height:90px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(143,180,232,.25)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{border:1px solid var(--line);background:#fff;color:var(--navy-2);font-family:inherit;font-size:.8rem;padding:5px 11px;border-radius:99px;cursor:pointer}
+.chip:hover{background:var(--pink-soft);border-color:var(--pink)}
+.hint{font-size:.82rem;color:var(--muted);margin-top:4px}
+
+/* narasi */
+.nar{border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px;background:#fcfdff}
+.nar-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.nar-h b{color:var(--navy)}
+.nar textarea{min-height:110px}
+.meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:.85rem}
+.badge{padding:2px 10px;border-radius:99px;font-weight:700;font-size:.78rem}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.bad{background:var(--bad-bg);color:var(--bad)}
+.bar{height:6px;border-radius:9px;background:#e9eff8;overflow:hidden;flex:1;min-width:80px}
+.bar i{display:block;height:100%;background:var(--blue);width:0;transition:width .25s}
+.bar i.full{background:#3fae7e}
+.warn{color:var(--bad);font-size:.85rem;margin-top:6px}
+
+/* reminder */
+.opt{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--line);border-radius:14px;margin-top:8px;cursor:pointer;font-weight:500;margin-bottom:0}
+.opt input{margin-top:4px;accent-color:var(--navy)}
+.opt:has(input:checked){border-color:var(--navy-2);background:var(--blue-soft)}
+.opt small{display:block;color:var(--muted);font-weight:400}
+.switch{display:flex;align-items:center;gap:10px;font-weight:600;margin:0}
+.switch input{width:20px;height:20px;accent-color:var(--navy)}
+.sup{list-style:none;padding:0;margin:0}
+.sup li{padding:10px 0;border-bottom:1px dashed var(--line);font-size:.92rem}
+.sup li:last-child{border:0}
+.note{background:var(--pink-soft);border:1px solid var(--pink);border-radius:14px;padding:12px 14px;font-size:.88rem;color:#5b2a3d;margin-top:12px}
+
+/* history */
+.hcard{border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:10px;background:#fff}
+.hcard h4{margin:0;color:var(--navy);font-size:1rem}
+.hcard .prev{color:var(--muted);font-size:.9rem;margin:4px 0 8px}
+.detail{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:.92rem}
+.detail h5{margin:10px 0 2px;color:var(--navy-2);font-size:.85rem}
+.detail p{white-space:pre-wrap;margin:0}
+.filters{display:grid;gap:10px;grid-template-columns:1fr}
+
+/* calendar */
+.cal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal-h h3{margin:0}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal .dh{text-align:center;font-size:.75rem;font-weight:700;color:var(--muted);padding:4px 0}
+.cal .dh.we{color:var(--pink-strong)}
+.cal button{aspect-ratio:1/1;border:1px solid var(--line);background:#fff;border-radius:12px;font-family:inherit;font-size:.9rem;color:var(--ink);cursor:pointer;position:relative;padding:0}
+.cal button.we{background:var(--pink-soft);border-color:#f6dfe8;color:#9a5570}
+.cal button.today{outline:2px solid var(--navy);outline-offset:1px;font-weight:700}
+.cal button.has{background:var(--blue-soft);border-color:var(--blue);font-weight:700;color:var(--navy)}
+.cal button.has::after{content:"";position:absolute;bottom:5px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--navy-2)}
+.cal .empty{visibility:hidden}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:5px}
+
+/* modal + toast */
+.modal{position:fixed;inset:0;background:rgba(20,39,78,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modal .box{background:#fff;border-radius:22px;max-width:420px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.3);text-align:center}
+.modal .ico{width:56px;height:56px;border-radius:50%;background:var(--pink);color:#6b2742;display:grid;place-items:center;margin:0 auto 12px}
+.modal .ico svg{width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:11px 18px;border-radius:14px;font-size:.9rem;opacity:0;pointer-events:none;transition:.3s;z-index:60;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+footer{text-align:center;color:var(--muted);font-size:.82rem;padding:20px 16px}
+footer b{color:var(--navy)}
+
+@media(min-width:768px){
+ body{padding-bottom:30px}
+ .tabs{position:sticky;top:12px;bottom:auto;max-width:1040px;margin:-30px auto 0;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:6px;width:calc(100% - 32px)}
+ .tabs button{flex-direction:row;justify-content:center;gap:8px;font-size:14px;padding:10px}
+ main{margin-top:18px}
+ .g2{grid-template-columns:1fr 1fr}
+ .stats{grid-template-columns:repeat(4,1fr)}
+ .shortcuts{grid-template-columns:repeat(3,1fr)}
+ .filters{grid-template-columns:2fr 1fr 1fr}
+ .toast{bottom:30px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+ <div class="wrap">
+  <div class="eyebrow">MagangHub Kemnaker · BKKBN Kecamatan Tambaksari</div>
+  <h1>MagangHub Daily Activity Assistant</h1>
+  <div class="by">Created by <b>nadhifahz</b></div>
+ </div>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="Navigasi utama"></nav>
+
+<main>
+ <!-- BERANDA -->
+ <section class="view on" id="v-home">
+  <div class="card greet">
+   <div>
+    <div class="muted" id="h-date"></div>
+    <h2 id="h-greet"></h2>
+    <button class="link" id="btn-name" type="button">Ubah nama</button>
+   </div>
+   <div class="clock"><span id="h-clock">--:--:--</span><small>WIB (GMT+7)</small></div>
+  </div>
+
+  <div class="grid g2" style="margin-bottom:16px">
+   <div class="card">
+    <h3>Jadwal kerja</h3>
+    <div class="days" id="h-days"></div>
+    <p class="muted" id="h-sched"></p>
+   </div>
+   <div class="card">
+    <h3>Status pengingat presensi</h3>
+    <div id="h-rem"></div>
+   </div>
+  </div>
+
+  <div class="card">
+   <h3>Ringkasan aktivitas</h3>
+   <div class="stats" id="h-stats"></div>
+   <div id="h-today"></div>
+  </div>
+
+  <div class="card">
+   <h3>Pintasan</h3>
+   <div class="shortcuts">
+    <button class="btn primary" data-go="note" data-today="1" type="button">Catat aktivitas hari ini</button>
+    <button class="btn pink" data-go="note" type="button">Generator narasi presensi</button>
+    <button class="btn soft" data-go="history" type="button">Riwayat aktivitas</button>
+   </div>
+  </div>
+ </section>
+
+ <!-- CATATAN + GENERATOR -->
+ <section class="view" id="v-note">
+  <div class="card">
+   <h3>Catatan aktivitas harian</h3>
+   <p class="muted">Cukup tulis poin-poin singkat, satu kegiatan per baris. Kalimat formalnya disusun oleh generator.</p>
+
+   <label for="f-date">Tanggal kegiatan</label>
+   <input type="date" id="f-date">
+
+   <label for="f-acts">Daftar aktivitas <small>(satu per baris)</small></label>
+   <textarea id="f-acts" rows="6" placeholder="Mengikuti briefing pagi bersama pembimbing&#10;Melakukan penginputan dan rekapitulasi data&#10;Membantu pengarsipan dokumen"></textarea>
+   <div class="chips" id="chips" aria-label="Contoh kegiatan"></div>
+   <div class="hint">Ketuk contoh di atas untuk menambahkannya, lalu sesuaikan dengan kegiatan aslimu.</div>
+
+   <label for="f-learn">Pembelajaran yang diperoleh <small>(boleh kosong)</small></label>
+   <textarea id="f-learn" rows="3" placeholder="Kosongkan jika ingin disusun otomatis dari aktivitasmu"></textarea>
+
+   <label for="f-obs">Kendala yang dialami <small>(boleh kosong)</small></label>
+   <textarea id="f-obs" rows="3" placeholder="Kosongkan atau tulis &quot;tidak ada&quot; jika tidak ada kendala"></textarea>
+
+   <div class="row" style="margin-top:16px">
+    <button class="btn primary" id="btn-gen" type="button">Generate Narasi</button>
+    <button class="btn soft" id="btn-save" type="button">Simpan Catatan</button>
+    <button class="btn ghost" id="btn-clear" type="button">Kosongkan form</button>
+   </div>
+  </div>
+
+  <div class="card" id="nar-card" hidden>
+   <div class="row" style="justify-content:space-between">
+    <h3 style="margin:0">Narasi untuk Monev MagangHub</h3>
+    <div class="row">
+     <button class="btn sm soft" id="btn-regen" type="button">Generate Ulang</button>
+     <button class="btn sm primary" id="btn-copyall" type="button">Salin Semua</button>
+    </div>
+   </div>
+   <p class="muted" style="margin-top:8px">Narasi dibuat dari template dan variasi kalimat berdasarkan aktivitas yang kamu isi (bukan AI). Teks bisa diedit langsung. Baca ulang dan sesuaikan agar sesuai kejadian sebenarnya sebelum dikirim.</p>
+   <div id="nar-blocks"></div>
+  </div>
+ </section>
+
+ <!-- PENGINGAT -->
+ <section class="view" id="v-rem">
+  <div class="card">
+   <h3>Pengingat presensi</h3>
+   <label class="switch"><input type="checkbox" id="r-enabled"> Pengingat aktif (Senin–Jumat, tidak berbunyi Sabtu/Minggu)</label>
+
+   <label for="r-time">Jam pengingat (WIB)</label>
+   <input type="time" id="r-time" value="15:30">
+
+   <label>Metode pengingat</label>
+   <label class="opt"><input type="radio" name="method" value="notif"><span>Notifikasi browser<small>Butuh izin notifikasi.</small></span></label>
+   <label class="opt"><input type="radio" name="method" value="sound"><span>Suara / alarm<small>Butuh halaman terbuka dan pernah diketuk.</small></span></label>
+   <label class="opt"><input type="radio" name="method" value="vibrate"><span>Getaran perangkat<small>Hanya jika browser/perangkat mendukung.</small></span></label>
+   <label class="opt"><input type="radio" name="method" value="all"><span>Kombinasi notifikasi, suara, dan getaran<small>Setiap metode berjalan sesuai dukungan perangkat.</small></span></label>
+
+   <label for="r-url">Tautan website Monev MagangHub <small>(opsional, disimpan di browser ini)</small></label>
+   <input type="url" id="r-url" placeholder="https://...">
+
+   <div class="row" style="margin-top:16px">
+    <button class="btn primary" id="btn-activate" type="button">Aktifkan Pengingat</button>
+    <button class="btn soft" id="btn-save-rem" type="button">Simpan Pengaturan</button>
+   </div>
+   <div class="row" style="margin-top:10px">
+    <button class="btn ghost sm" id="btn-test-sound" type="button">Tes Suara</button>
+    <button class="btn ghost sm" id="btn-test-vib" type="button">Tes Getaran</button>
+    <button class="btn ghost sm" id="btn-test-notif" type="button">Tes Notifikasi</button>
+   </div>
+   <div class="note" id="r-msg-preview"></div>
+  </div>
+
+  <div class="card">
+   <h3>Dukungan perangkat ini</h3>
+   <ul class="sup" id="r-support"></ul>
+  </div>
+
+  <div class="card">
+   <h3>Penting: batas pengingat</h3>
+   <p class="muted">Pengingat ini dijalankan JavaScript di halaman web, sehingga hanya berfungsi selama halaman/tab ini masih terbuka (boleh di latar belakang, tetapi browser seluler dapat menidurkan tab). Jika halaman ditutup penuh, pengingat tidak dijamin berbunyi.</p>
+   <p class="muted">Notifikasi yang tetap muncul saat website ditutup membutuhkan Web Push dari server (VAPID), yang tidak tersedia pada hosting statis GitHub Pages. Langkah tambahannya dijelaskan di README. Sebagai cadangan, pasang juga alarm bawaan HP pada jam yang sama.</p>
+  </div>
+ </section>
+
+ <!-- RIWAYAT -->
+ <section class="view" id="v-history">
+  <div class="card">
+   <h3>Riwayat aktivitas</h3>
+   <div class="filters">
+    <input type="search" id="hs-q" placeholder="Cari kata kunci (aktivitas, narasi, tanggal)">
+    <input type="date" id="hs-date" aria-label="Filter tanggal">
+    <select id="hs-sort" aria-label="Urutan"><option value="desc">Terbaru dulu</option><option value="asc">Terlama dulu</option></select>
+   </div>
+   <div class="row" style="margin-top:12px">
+    <button class="btn sm ghost" id="hs-reset" type="button">Reset filter</button>
+    <button class="btn sm soft" id="ex-txt" type="button">Ekspor TXT</button>
+    <button class="btn sm soft" id="ex-csv" type="button">Ekspor CSV</button>
+    <button class="btn sm ghost" id="ex-json" type="button">Cadangan JSON</button>
+    <button class="btn sm ghost" id="im-json" type="button">Impor JSON</button>
+    <input type="file" id="im-file" accept="application/json,.json" hidden>
+   </div>
+   <div class="hint">Data tersimpan di LocalStorage browser ini saja. Ekspor cadangan secara berkala, terutama sebelum membersihkan data browser.</div>
+   <div id="hs-list"></div>
+  </div>
+ </section>
+
+ <!-- KALENDER -->
+ <section class="view" id="v-cal">
+  <div class="card">
+   <div class="cal-h">
+    <button class="btn sm ghost" id="cal-prev" type="button" aria-label="Bulan sebelumnya">&larr;</button>
+    <h3 id="cal-title"></h3>
+    <button class="btn sm ghost" id="cal-next" type="button" aria-label="Bulan berikutnya">&rarr;</button>
+   </div>
+   <div class="cal" id="cal"></div>
+   <div class="legend">
+    <span><i style="background:var(--blue-soft);border:1px solid var(--blue)"></i>Ada catatan</span>
+    <span><i style="background:var(--pink-soft);border:1px solid #f6dfe8"></i>Akhir pekan</span>
+    <span><i style="border:2px solid var(--navy)"></i>Hari ini</span>
+   </div>
+   <div class="hint">Ketuk tanggal untuk membuat atau membuka catatan. Hari libur nasional dan cuti bersama tidak dihitung otomatis; hari kerja dihitung Senin–Jumat.</div>
+  </div>
+  <div class="card">
+   <h3>Statistik bulan ini</h3>
+   <div class="stats" id="cal-stats"></div>
+   <div id="cal-missing"></div>
+  </div>
+ </section>
+</main>
+
+<footer>MagangHub Daily Activity Assistant · BKKBN Kecamatan Tambaksari<br>Created by <b>nadhifahz</b></footer>
+
+<div class="modal" id="modal" hidden role="alertdialog" aria-modal="true" aria-labelledby="m-title">
+ <div class="box">
+  <div class="ico"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+  <h3 id="m-title">Pengingat Presensi</h3>
+  <p id="m-text"></p>
+  <div class="row" style="justify-content:center">
+   <a class="btn primary" id="m-open" href="#" target="_blank" rel="noopener" hidden>Buka Monev</a>
+   <button class="btn soft" id="m-note" type="button">Buka catatan</button>
+   <button class="btn ghost" id="m-close" type="button">Tutup</button>
+  </div>
+ </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+
+/* ---------- Konstanta & util waktu (WIB) ---------- */
+var TZ='Asia/Jakarta', MIN=100;
+var DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+var MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+var REM_MSG='Waktunya mengisi presensi MagangHub! Jangan lupa melengkapi uraian aktivitas, pembelajaran yang diperoleh, dan kendala hari ini.';
+var p2=function(n){return String(n).padStart(2,'0')};
+var fmtWIB=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,weekday:'short'});
+var DOWMAP={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+function nowWIB(){
+ var o={};fmtWIB.formatToParts(new Date()).forEach(function(x){o[x.type]=x.value});
+ return {y:+o.year,m:+o.month,d:+o.day,h:(+o.hour)%24,mi:+o.minute,s:+o.second,dow:DOWMAP[o.weekday],iso:o.year+'-'+o.month+'-'+o.day};
+}
+function dowOf(iso){return new Date(iso+'T00:00:00Z').getUTCDay()}
+function isWeekday(d){return d>=1&&d<=5}
+function addDays(iso,n){var d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function isoOf(y,m,d){return y+'-'+p2(m)+'-'+p2(d)}
+function fmtDate(iso){var a=iso.split('-');return DAYS[dowOf(iso)]+', '+(+a[2])+' '+MONTHS[+a[1]-1]+' '+a[0]}
+function fmtShort(iso){var a=iso.split('-');return DAYS[dowOf(iso)]+', '+(+a[2])+' '+MONTHS[+a[1]-1]}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+/* ---------- Penyimpanan ---------- */
+var K_E='mh_entries_v1', K_S='mh_settings_v1';
+function ls(k,def){try{var v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}}
+function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){toast('Gagal menyimpan ke browser (penyimpanan penuh atau diblokir).');return false}}
+var entries=ls(K_E,{});
+var DEF={name:'',enabled:false,time:'15:30',method:'all',lastFired:'',monevUrl:''};
+var S=Object.assign({},DEF,ls(K_S,{}));
+function persistEntries(){return ss(K_E,entries)}
+function persistSettings(){return ss(K_S,S)}
+
+/* ---------- UI dasar ---------- */
+var toastT;
+function toast(msg){var t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},3200)}
+var ICONS={
+ home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+ note:'<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+ rem:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+ history:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+ cal:'<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'
+};
+var TABS=[['home','Beranda'],['note','Catatan'],['rem','Pengingat'],['history','Riwayat'],['cal','Kalender']];
+var VIEWID={home:'v-home',note:'v-note',rem:'v-rem',history:'v-history',cal:'v-cal'};
+$('#tabs').innerHTML=TABS.map(function(t){return '<button type="button" data-tab="'+t[0]+'"><svg viewBox="0 0 24 24" aria-hidden="true">'+ICONS[t[0]]+'</svg><span>'+t[1]+'</span></button>'}).join('');
+function show(tab){
+ $$('.view').forEach(function(v){v.classList.toggle('on',v.id===VIEWID[tab])});
+ $$('#tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.tab===tab)});
+ if(tab==='home')renderHome();
+ if(tab==='rem')renderReminder();
+ if(tab==='history')renderHistory();
+ if(tab==='cal')renderCalendar();
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+$('#tabs').addEventListener('click',function(e){var b=e.target.closest('button[data-tab]');if(b)show(b.dataset.tab)});
+
+/* ---------- Generator narasi (template, bukan AI) ---------- */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function pick(arr,r){return arr[Math.floor(r()*arr.length)]}
+function lc(s){return /^[A-Z]{2,}/.test(s)?s:s.charAt(0).toLowerCase()+s.slice(1)}
+function parseLines(text){return text.split(/\n+/).map(function(s){return s.replace(/^\s*(?:[-*\u2022\u00b7]|\d+[.)])\s*/,'').trim().replace(/[.;,]+$/,'')}).filter(Boolean)}
+function joinList(a,r){
+ if(a.length<=1)return a[0]||'';
+ if(a.length===2)return a[0]+' dan '+a[1];
+ return a.slice(0,-1).join(', ')+(r&&r()<.5?', serta ':', dan ')+a[a.length-1];
+}
+function padTo(text,fillers){
+ var i=0;
+ while(text.length<MIN&&i<fillers.length){text+=' '+fillers[i++]}
+ return text;
+}
+
+function genUraian(acts,iso,r){
+ var L=acts.map(lc), dt=fmtDate(iso), hari=DAYS[dowOf(iso)], tgl=dt.split(', ')[1];
+ var open=[
+  function(){return 'Pada '+dt+', saya melaksanakan kegiatan magang di BKKBN Kecamatan Tambaksari. Kegiatan yang dilakukan meliputi '+joinList(L,r)+'.'},
+  function(){return 'Pada hari '+hari+' ('+tgl+'), saya menjalankan sejumlah kegiatan di BKKBN Kecamatan Tambaksari, yaitu '+joinList(L,r)+'.'}
+ ];
+ if(L.length===2)open.push(function(){return 'Pada '+dt+', kegiatan magang di BKKBN Kecamatan Tambaksari diawali dengan '+L[0]+', kemudian dilanjutkan dengan '+L[1]+'.'});
+ if(L.length>=3)open.push(function(){return 'Pada '+dt+', kegiatan magang di BKKBN Kecamatan Tambaksari diawali dengan '+L[0]+', dilanjutkan dengan '+joinList(L.slice(1,-1),r)+', dan diakhiri dengan '+L[L.length-1]+'.'});
+ var t=pick(open,r)();
+ var fill=['Seluruh kegiatan tersebut menjadi bagian dari pelaksanaan program magang MagangHub.','Rangkaian kegiatan ini dilaksanakan sebagai bagian dari tugas harian selama magang.'];
+ if(r()<.6)t+=' '+pick(fill,r);
+ return padTo(t,fill);
+}
+
+var CATS=[
+ {re:/briefing|arahan|apel|pengarahan|orientasi/i,v:['Saya memahami pentingnya menyimak arahan secara cermat agar tugas yang diberikan dapat dipahami dengan jelas dan dikerjakan sesuai harapan pembimbing.','Saya belajar bahwa briefing membantu menyamakan pemahaman mengenai prioritas dan target pekerjaan sehingga pelaksanaan tugas menjadi lebih terarah.']},
+ {re:/input|\bdata\b|rekap|mengolah|pengolahan|excel|spreadsheet|tabulasi|entri|pendataan/i,v:['Saya belajar mengolah dan merekap data dengan lebih teliti serta memahami bahwa keakuratan data menjadi dasar penting bagi penyusunan laporan.','Saya memahami alur penginputan data yang sistematis dan melatih ketelitian agar informasi yang dicatat dapat dipertanggungjawabkan.']},
+ {re:/administrasi|surat|agenda|disposisi|naskah|berkas|tata usaha/i,v:['Saya memahami tata cara pengelolaan administrasi perkantoran yang tertib, mulai dari pencatatan hingga penyusunan berkas sesuai ketentuan.','Saya belajar bahwa administrasi yang rapi dan tepat waktu sangat menunjang kelancaran pekerjaan di lingkungan kantor.']},
+ {re:/arsip|filing/i,v:['Saya mengetahui pentingnya pengarsipan dokumen yang terstruktur agar berkas mudah ditelusuri kembali saat dibutuhkan.','Saya belajar mengelompokkan dan menata dokumen secara sistematis sehingga ketertiban arsip dapat terjaga.']},
+ {re:/desain|konten|publikasi|poster|canva|infografis|video|media sosial|instagram/i,v:['Saya mengasah keterampilan merancang konten visual yang informatif dan menarik serta memahami pentingnya kesesuaian pesan dengan sasaran publikasi.','Saya belajar menuangkan informasi ke dalam desain yang rapi dan mudah dipahami sehingga dapat mendukung kegiatan publikasi instansi.']},
+ {re:/rapat|koordinasi|diskusi|pertemuan|rakor|sosialisasi/i,v:['Saya memperoleh pemahaman mengenai jalannya koordinasi dengan berbagai pihak serta melatih kemampuan menyimak, mencatat poin penting, dan berkomunikasi dengan baik.','Saya belajar bahwa koordinasi yang jelas dan komunikasi yang aktif membantu pelaksanaan program berjalan lebih terpadu.']},
+ {re:/dokumentasi|\bfoto\b|memotret|liputan|meliput/i,v:['Saya belajar mendokumentasikan kegiatan dengan tepat dan runtut sehingga hasilnya dapat dimanfaatkan sebagai bukti serta bahan pelaporan.','Saya memahami bahwa dokumentasi yang baik memerlukan ketelitian dalam memilih momen dan menyusun hasilnya secara rapi.']},
+ {re:/lapangan|kunjungan|penyuluh|kader|posyandu|stunting|bkkbn|\bkb\b|keluarga/i,v:['Saya memperoleh gambaran langsung mengenai pelaksanaan program kependudukan dan keluarga berencana serta cara berinteraksi dengan pihak terkait.','Saya belajar memahami kondisi di lapangan dan melatih kemampuan beradaptasi dalam berkomunikasi dengan berbagai pihak.']},
+ {re:/laporan|lapor|menyusun|notulen|notula/i,v:['Saya melatih kemampuan menyusun laporan atau catatan kegiatan secara runtut, jelas, dan sesuai dengan fakta yang ada.','Saya memahami pentingnya penyusunan laporan yang akurat dan tepat waktu sebagai bentuk akuntabilitas pekerjaan.']}
+];
+
+function genBelajar(acts,userText,r){
+ var hay=acts.join(' ; ')+' '+(userText||'');
+ var hits=CATS.filter(function(c){return c.re.test(hay)});
+ var hasUser=!!userText.trim();
+ var max=hasUser?2:3;
+ var sents=[], parts=[];
+ if(hasUser){
+  var items=parseLines(userText).map(lc);
+  parts.push(pick(['Pembelajaran yang saya peroleh dari kegiatan hari ini antara lain '+joinList(items,r)+'.','Dari kegiatan hari ini, saya memperoleh pembelajaran berupa '+joinList(items,r)+'.'],r));
+ }
+ // kategori yang cocok, urutan diacak agar tidak monoton
+ hits=hits.map(function(c){return {c:c,k:r()}}).sort(function(a,b){return a.k-b.k}).slice(0,max).map(function(x){return x.c});
+ hits.forEach(function(c){sents.push(pick(c.v,r))});
+ var openers=['Dari kegiatan hari ini, ','Melalui rangkaian kegiatan hari ini, ','Selama pelaksanaan kegiatan, '];
+ var joiners=['Selain itu, ','Di samping itu, ','Selanjutnya, '];
+ sents.forEach(function(s,i){
+  if(!parts.length&&i===0)parts.push(pick(openers,r)+lc(s));
+  else parts.push(joiners[(parts.length-1+3)%3]+lc(s));
+ });
+ if(!parts.length){
+  parts.push('Melalui kegiatan '+lc(acts[0])+', saya memperoleh pengalaman langsung mengenai alur kerja di BKKBN Kecamatan Tambaksari serta melatih ketelitian, tanggung jawab, dan kemampuan bekerja sama dengan pegawai.');
+ }
+ var t=parts.join(' ');
+ return padTo(t,['Pengalaman tersebut membantu saya memahami bagaimana pekerjaan dilaksanakan secara langsung di lingkungan kerja.','Saya juga terus melatih kedisiplinan dan tanggung jawab dalam menyelesaikan setiap tugas yang diberikan.']);
+}
+
+var NONE_RE=/^(tidak ada|tdk ada|nihil|-|tidak|gak ada|ga ada|tidak ada kendala|tidak ada kendala berarti)\.?$/i;
+var NONE_T=[
+ 'Tidak terdapat kendala berarti selama pelaksanaan kegiatan. Seluruh aktivitas dapat berjalan dengan baik melalui koordinasi dan arahan dari pembimbing.',
+ 'Selama pelaksanaan kegiatan pada hari ini tidak ditemui hambatan yang berarti. Seluruh tugas dapat diselesaikan dengan lancar sesuai dengan arahan yang diberikan.',
+ 'Tidak ada kendala yang signifikan dalam pelaksanaan seluruh kegiatan hari ini. Setiap aktivitas dapat dikerjakan dengan baik dan berjalan sesuai rencana.',
+ 'Kegiatan hari ini berjalan lancar tanpa kendala yang berarti. Seluruh pekerjaan dapat dilaksanakan dengan baik berkat koordinasi yang terjalin antara peserta magang dan pembimbing.'
+];
+function genKendala(userText,r){
+ var u=userText.trim();
+ if(!u||NONE_RE.test(u)){return padTo(pick(NONE_T,r),['Seluruh pekerjaan dapat diselesaikan dengan baik pada hari ini.'])}
+ var items=parseLines(u).map(lc);
+ var t=pick(['Kendala yang dialami pada kegiatan hari ini adalah '+joinList(items,r)+'.','Dalam pelaksanaan kegiatan hari ini, terdapat kendala berupa '+joinList(items,r)+'.'],r);
+ t+=' '+pick(['Kendala tersebut menjadi bahan evaluasi agar pelaksanaan kegiatan berikutnya dapat berjalan lebih baik.','Hal ini menjadi catatan bagi saya untuk lebih mempersiapkan diri pada kegiatan selanjutnya.'],r);
+ return padTo(t,['Kendala ini dicatat sebagai bahan perbaikan ke depan.','Saya akan berusaha berkomunikasi lebih aktif dengan pembimbing apabila menemui hambatan serupa.']);
+}
+function generate(acts,iso,learnTxt,obsTxt){
+ var r=mulberry((Date.now()^Math.floor(Math.random()*1e9))>>>0);
+ return {uraian:genUraian(acts,iso,r),belajar:genBelajar(acts,learnTxt,r),kendala:genKendala(obsTxt,r)};
+}
+window.__mhGen=generate; // untuk pengujian
+
+/* ---------- Form catatan ---------- */
+var QUICK=['Mengikuti briefing pagi bersama pembimbing','Melakukan penginputan dan rekapitulasi data','Membantu penyusunan administrasi','Membuat desain konten publikasi','Mengikuti rapat koordinasi','Melakukan dokumentasi kegiatan','Membantu pengarsipan dokumen','Melakukan koordinasi dengan pegawai atau pihak terkait'];
+$('#chips').innerHTML=QUICK.map(function(q){return '<button type="button" class="chip" data-q="'+esc(q)+'">+ '+esc(q)+'</button>'}).join('');
+$('#chips').addEventListener('click',function(e){
+ var b=e.target.closest('.chip');if(!b)return;
+ var ta=$('#f-acts');ta.value=(ta.value.trim()?ta.value.replace(/\s+$/,'')+'\n':'')+b.dataset.q;ta.focus();
+});
+var KEYS=[['uraian','A. Uraian Aktivitas'],['belajar','B. Pembelajaran yang Diperoleh'],['kendala','C. Kendala yang Dialami']];
+$('#nar-blocks').innerHTML=KEYS.map(function(k){return '<div class="nar"><div class="nar-h"><b>'+k[1]+'</b><button class="btn sm soft" type="button" data-copy="'+k[0]+'">Copy</button></div><textarea id="ta-'+k[0]+'" spellcheck="true"></textarea><div class="meta"><span id="ct-'+k[0]+'"></span><span class="badge" id="bd-'+k[0]+'"></span><span class="bar"><i id="pg-'+k[0]+'"></i></span></div><div class="warn" id="wn-'+k[0]+'" hidden></div></div>'}).join('');
+
+function grow(ta){ta.style.height='auto';ta.style.height=Math.max(110,ta.scrollHeight+4)+'px'}
+function updateMeta(k){
+ var ta=$('#ta-'+k), len=ta.value.trim().length, ok=len>=MIN;
+ $('#ct-'+k).textContent=len+' / '+MIN+' karakter';
+ var b=$('#bd-'+k);b.textContent=ok?'Memenuhi syarat':'Belum memenuhi';b.className='badge '+(ok?'ok':'bad');
+ var pg=$('#pg-'+k);pg.style.width=Math.min(100,len/MIN*100)+'%';pg.className=ok?'full':'';
+ var w=$('#wn-'+k);w.hidden=ok;w.textContent=ok?'':'Masih kurang '+(MIN-len)+' karakter dari batas minimal '+MIN+'. Tambahkan detail sebelum disalin.';
+ grow(ta);
+}
+function setNarasi(n){
+ KEYS.forEach(function(k){$('#ta-'+k[0]).value=(n&&n[k[0]])||'';updateMeta(k[0])});
+ $('#nar-card').hidden=!(n&&(n.uraian||n.belajar||n.kendala));
+}
+function getNarasi(){
+ var n={},any=false;
+ KEYS.forEach(function(k){n[k[0]]=$('#ta-'+k[0]).value.trim();if(n[k[0]])any=true});
+ return any?n:null;
+}
+KEYS.forEach(function(k){$('#ta-'+k[0]).addEventListener('input',function(){updateMeta(k[0])})});
+
+var editing=null;
+function loadEntry(iso){
+ var e=entries[iso];
+ $('#f-date').value=iso;
+ $('#f-acts').value=e?e.activities.join('\n'):'';
+ $('#f-learn').value=e?e.learningInput||'':'';
+ $('#f-obs').value=e?e.obstacleInput||'':'';
+ setNarasi(e?e.narasi:null);
+ editing=e?iso:null;
+}
+function openDate(iso){loadEntry(iso);show('note');if(!entries[iso])toast('Catatan baru untuk '+fmtShort(iso))}
+$('#f-date').addEventListener('change',function(){
+ var d=this.value;if(d&&entries[d]){loadEntry(d);toast('Catatan tanggal ini dimuat')}else{editing=null}
+});
+
+function saveEntry(quiet){
+ var date=$('#f-date').value;
+ if(!date){toast('Pilih tanggal kegiatan dulu.');return false}
+ var acts=parseLines($('#f-acts').value), nar=getNarasi();
+ if(!acts.length&&!nar){toast('Isi minimal satu aktivitas.');return false}
+ entries[date]={date:date,activities:acts,learningInput:$('#f-learn').value.trim(),obstacleInput:$('#f-obs').value.trim(),narasi:nar,updated:Date.now()};
+ if(!persistEntries())return false;
+ editing=date;
+ if(!quiet)toast('Catatan '+fmtShort(date)+' tersimpan.');
+ renderHome();
+ return true;
+}
+function doGenerate(){
+ var date=$('#f-date').value;
+ if(!date){toast('Pilih tanggal kegiatan dulu.');return}
+ var acts=parseLines($('#f-acts').value);
+ if(!acts.length){toast('Tulis minimal satu aktivitas terlebih dulu.');$('#f-acts').focus();return}
+ var n=generate(acts,date,$('#f-learn').value,$('#f-obs').value);
+ setNarasi(n);
+ saveEntry(true);
+ toast('Narasi dibuat dan catatan tersimpan.');
+ $('#nar-card').scrollIntoView({behavior:'smooth',block:'start'});
+}
+$('#btn-gen').addEventListener('click',doGenerate);
+$('#btn-regen').addEventListener('click',doGenerate);
+$('#btn-save').addEventListener('click',function(){saveEntry(false)});
+$('#btn-clear').addEventListener('click',function(){
+ if(($('#f-acts').value||getNarasi())&&!confirm('Kosongkan form? Catatan yang sudah tersimpan tidak ikut terhapus.'))return;
+ loadEntry($('#f-date').value);
+ if(!entries[$('#f-date').value]){$('#f-acts').value='';$('#f-learn').value='';$('#f-obs').value='';setNarasi(null)}
+});
+
+function copyText(text){
+ if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(text);
+ return new Promise(function(res,rej){
+  var t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();
+  try{document.execCommand('copy')?res():rej()}catch(e){rej(e)}document.body.removeChild(t);
+ });
+}
+function copyOne(k){
+ var txt=$('#ta-'+k).value.trim();
+ if(!txt){toast('Teks masih kosong.');return}
+ if(txt.length<MIN&&!confirm('Teks ini baru '+txt.length+' karakter (minimal '+MIN+'). Sistem Monev bisa menolaknya. Tetap salin?'))return;
+ copyText(txt).then(function(){toast('Tersalin.')},function(){toast('Gagal menyalin. Salin manual dari kotak teks.')});
+}
+function copyAll(){
+ var bad=KEYS.filter(function(k){return $('#ta-'+k[0]).value.trim().length<MIN});
+ if(bad.length&&!confirm('Bagian berikut belum mencapai '+MIN+' karakter: '+bad.map(function(k){return k[1]}).join('; ')+'. Tetap salin semua?'))return;
+ var txt=KEYS.map(function(k){return k[1].replace(/^[A-C]\.\s/,'')+':\n'+$('#ta-'+k[0]).value.trim()}).join('\n\n');
+ copyText(txt).then(function(){toast('Semua narasi tersalin.')},function(){toast('Gagal menyalin.')});
+}
+$('#nar-blocks').addEventListener('click',function(e){var b=e.target.closest('[data-copy]');if(b)copyOne(b.dataset.copy)});
+$('#btn-copyall').addEventListener('click',copyAll);
+
+/* ---------- Statistik ---------- */
+function streak(){
+ var n=nowWIB(),iso=n.iso,c=0;
+ for(var i=0;i<400;i++){
+  var d=dowOf(iso);
+  if(isWeekday(d)){
+   if(entries[iso])c++;
+   else if(iso!==n.iso)break;
+  }
+  iso=addDays(iso,-1);
+ }
+ return c;
+}
+function monthStats(y,m){
+ var today=nowWIB().iso, dim=new Date(Date.UTC(y,m,0)).getUTCDate();
+ var elapsed=0,noted=0,total=0,missing=[];
+ for(var d=1;d<=dim;d++){
+  var iso=isoOf(y,m,d),wd=isWeekday(dowOf(iso));
+  if(entries[iso])total++;
+  if(wd&&iso<=today){elapsed++;if(entries[iso])noted++;else if(iso<today)missing.push(iso)}
+ }
+ return {elapsed:elapsed,noted:noted,total:total,missing:missing,pct:elapsed?Math.round(noted/elapsed*100):0};
+}
+function statTiles(items){return items.map(function(i){return '<div class="stat"><b>'+i[0]+'</b><span>'+i[1]+'</span></div>'}).join('')}
+
+/* ---------- Beranda ---------- */
+var METHOD_LABEL={notif:'Notifikasi browser',sound:'Suara / alarm',vibrate:'Getaran',all:'Notifikasi + suara + getaran'};
+function nextReminder(){
+ var n=nowWIB(),a=S.time.split(':').map(Number),rem=a[0]*60+a[1],cur=n.h*60+n.mi,iso=n.iso;
+ if(!(isWeekday(n.dow)&&cur<rem))iso=addDays(iso,1);
+ while(!isWeekday(dowOf(iso)))iso=addDays(iso,1);
+ return iso;
+}
+function renderHome(){
+ var n=nowWIB();
+ var g=n.h<11?'Selamat pagi':n.h<15?'Selamat siang':n.h<18?'Selamat sore':'Selamat malam';
+ $('#h-greet').textContent=g+(S.name?', '+S.name:'');
+ $('#h-date').textContent=fmtDate(n.iso);
+ $('#h-days').innerHTML=['Sen','Sel','Rab','Kam','Jum'].map(function(d,i){return '<span class="'+(n.dow===i+1?'today':'')+'">'+d+'</span>'}).join('');
+ var t=S.time.replace(':','.');
+ $('#h-sched').innerHTML='Hari kerja Senin–Jumat. Waktu pengisian presensi (pengingat): <strong>'+t+' WIB</strong>.'+(isWeekday(n.dow)?'':' Hari ini akhir pekan, tidak ada pengingat.');
+ var on=S.enabled;
+ $('#h-rem').innerHTML='<span class="pill '+(on?'ok':'off')+'">'+(on?'Aktif':'Nonaktif')+'</span><p style="margin-top:10px">Jadwal: <b>'+t+' WIB</b>, Senin–Jumat<br>Metode: '+METHOD_LABEL[S.method]+'</p><p class="muted">'+(on?'Berikutnya: '+fmtShort(nextReminder())+' pukul '+t+' WIB. Halaman ini perlu tetap terbuka.':'Atur dan aktifkan di tab Pengingat.')+'</p>';
+ var ms=monthStats(n.y,n.m),tk=entries[n.iso];
+ $('#h-stats').innerHTML=statTiles([[Object.keys(entries).length,'Total catatan'],[ms.total,'Catatan bulan ini'],[streak(),'Beruntun (hari kerja)'],[tk?'Sudah':'Belum','Catatan hari ini']]);
+ if(tk&&tk.activities.length)$('#h-today').innerHTML='<b>Aktivitas hari ini</b><ul class="today-list">'+tk.activities.slice(0,6).map(function(a){return '<li>'+esc(a)+'</li>'}).join('')+'</ul>';
+ else $('#h-today').innerHTML='<p class="muted">Belum ada aktivitas tercatat hari ini.</p>';
+}
+$('#btn-name').addEventListener('click',function(){
+ var v=prompt('Nama panggilan untuk sapaan:',S.name||'');
+ if(v!==null){S.name=v.trim().slice(0,40);persistSettings();renderHome()}
+});
+document.addEventListener('click',function(e){
+ var b=e.target.closest('[data-go]');if(!b)return;
+ if(b.dataset.today)openDate(nowWIB().iso);else show(b.dataset.go);
+});
+
+/* ---------- Pengingat ---------- */
+var audioCtx=null,swReg=null,alarmT=null;
+function getAudio(){
+ try{if(!audioCtx){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;audioCtx=new C()}return audioCtx}catch(e){return null}
+}
+function unlockAudio(){var c=getAudio();if(c&&c.state==='suspended')c.resume()}
+['pointerdown','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,unlockAudio,{once:true,passive:true})});
+function beep(){
+ var c=getAudio();if(!c)return false;
+ if(c.state==='suspended')c.resume();
+ var t0=c.currentTime+.05;
+ for(var i=0;i<6;i++){
+  var o=c.createOscillator(),g=c.createGain(),t=t0+i*.35;
+  o.type='sine';o.frequency.value=i%2?880:660;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.35,t+.03);g.gain.linearRampToValueAtTime(0,t+.3);
+  o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+.32);
+ }
+ return true;
+}
+function startAlarm(){stopAlarm();beep();var n=0;alarmT=setInterval(function(){if(++n>=5){stopAlarm();return}beep()},6000)}
+function stopAlarm(){if(alarmT){clearInterval(alarmT);alarmT=null}}
+function canVibrate(){return 'vibrate' in navigator}
+function doVibrate(){if(!canVibrate())return false;try{return navigator.vibrate([300,150,300,150,500])}catch(e){return false}}
+async function notify(title,body){
+ if(!('Notification' in window)||Notification.permission!=='granted')return false;
+ try{
+  if(swReg){await swReg.showNotification(title,{body:body,tag:'maganghub-presensi',renotify:true,requireInteraction:true,vibrate:[300,150,300,150,300]});return true}
+  new Notification(title,{body:body,tag:'maganghub-presensi'});return true;
+ }catch(e){
+  try{var reg=await navigator.serviceWorker.ready;await reg.showNotification(title,{body:body,tag:'maganghub-presensi'});return true}catch(e2){return false}
+ }
+}
+function showModal(){
+ $('#m-text').textContent=REM_MSG;
+ var a=$('#m-open');if(S.monevUrl){a.href=S.monevUrl;a.hidden=false}else a.hidden=true;
+ $('#modal').hidden=false;
+}
+function closeModal(){$('#modal').hidden=true;stopAlarm()}
+$('#m-close').addEventListener('click',closeModal);
+$('#m-note').addEventListener('click',function(){closeModal();openDate(nowWIB().iso)});
+function fireReminder(){
+ var m=S.method,N=m==='notif'||m==='all',So=m==='sound'||m==='all',V=m==='vibrate'||m==='all';
+ if(N)notify('MagangHub Daily Activity Assistant',REM_MSG);
+ if(So)startAlarm();
+ if(V)doVibrate();
+ showModal();
+}
+function checkReminder(n){
+ if(!S.enabled||!isWeekday(n.dow))return;
+ var a=S.time.split(':').map(Number),diff=(n.h*60+n.mi)-(a[0]*60+a[1]);
+ if(diff>=0&&diff<=30&&S.lastFired!==n.iso){S.lastFired=n.iso;persistSettings();fireReminder()}
+}
+
+function readSettingsForm(){
+ var t=$('#r-time').value||'15:30',m=($('input[name=method]:checked')||{}).value||'all';
+ var changed=(t!==S.time)||($('#r-enabled').checked!==S.enabled);
+ S.time=t;S.method=m;S.enabled=$('#r-enabled').checked;S.monevUrl=$('#r-url').value.trim();
+ if(changed)S.lastFired='';
+}
+function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+function isStandalone(){return window.navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)}
+function renderSupport(){
+ var li=[];
+ var nt;
+ if(!('Notification' in window))nt=isIOS()&&!isStandalone()?'<b>Belum tersedia.</b> Di iPhone/iPad, notifikasi web hanya bisa jika website ditambahkan ke Layar Utama (iOS 16.4 ke atas) dan dibuka dari ikon tersebut.':'<b>Tidak didukung</b> oleh browser ini.';
+ else{var p=Notification.permission;nt=p==='granted'?'<b>Diizinkan.</b>':p==='denied'?'<b>Diblokir.</b> Izinkan lewat pengaturan situs di browser, lalu muat ulang halaman.':'<b>Belum diizinkan.</b> Tekan "Aktifkan Pengingat" untuk meminta izin.'}
+ li.push('Notifikasi browser: '+nt);
+ li.push('Suara / alarm: '+(window.AudioContext||window.webkitAudioContext?'<b>Didukung.</b> Suara baru bisa berbunyi setelah kamu mengetuk/klik halaman ini sekali, dan tergantung volume serta mode senyap perangkat.':'<b>Tidak didukung</b> oleh browser ini.'));
+ li.push('Getaran: '+(canVibrate()?'<b>Terdeteksi didukung</b> oleh browser. Hasilnya tetap bergantung pada pengaturan perangkat; gunakan "Tes Getaran" untuk memastikan.':'<b>Tidak didukung</b> di perangkat/browser ini (iPhone/Safari tidak menyediakan getaran web).'));
+ li.push('Berjalan saat halaman ditutup: <b>Tidak dijamin.</b> Perlu Web Push dari server (lihat README).');
+ $('#r-support').innerHTML=li.map(function(x){return '<li>'+x+'</li>'}).join('');
+}
+function renderReminder(){
+ $('#r-enabled').checked=S.enabled;$('#r-time').value=S.time;$('#r-url').value=S.monevUrl||'';
+ $$('input[name=method]').forEach(function(r){r.checked=r.value===S.method});
+ $('#r-msg-preview').textContent='Pesan pengingat: "'+REM_MSG+'"';
+ renderSupport();
+}
+function saveSettings(msg){
+ readSettingsForm();
+ if(persistSettings()){renderHome();toast(msg||'Pengaturan tersimpan.')}
+}
+$('#btn-save-rem').addEventListener('click',function(){saveSettings()});
+$('#btn-activate').addEventListener('click',async function(){
+ unlockAudio();
+ var m=($('input[name=method]:checked')||{}).value||'all';
+ if((m==='notif'||m==='all')&&'Notification' in window&&Notification.permission==='default'){try{await Notification.requestPermission()}catch(e){}}
+ $('#r-enabled').checked=true;
+ saveSettings();
+ renderSupport();
+ if((m==='notif'||m==='all')&&!('Notification' in window&&Notification.permission==='granted'))toast('Pengingat aktif, tetapi notifikasi belum diizinkan. Pengingat hanya muncul sebagai pesan di halaman.');
+ else toast('Pengingat aktif. Biarkan halaman ini tetap terbuka.');
+});
+$('#btn-test-sound').addEventListener('click',function(){
+ unlockAudio();
+ if(!beep())toast('Browser ini tidak mendukung suara.');
+ else{toast('Memutar suara uji... Jika tidak terdengar, cek volume dan mode senyap.')}
+});
+$('#btn-test-vib').addEventListener('click',function(){
+ if(!canVibrate()){toast('Getaran tidak didukung di perangkat/browser ini.');return}
+ var ok=doVibrate();
+ toast(ok?'Getaran dikirim. Jika tidak terasa, cek pengaturan getar perangkat.':'Browser menolak perintah getar.');
+});
+$('#btn-test-notif').addEventListener('click',async function(){
+ if(!('Notification' in window)){toast('Notifikasi tidak didukung di browser ini.');return}
+ if(Notification.permission==='default'){try{await Notification.requestPermission()}catch(e){}renderSupport()}
+ if(Notification.permission!=='granted'){toast('Notifikasi belum diizinkan.');return}
+ var ok=await notify('Tes notifikasi MagangHub',REM_MSG);
+ toast(ok?'Notifikasi uji dikirim.':'Gagal menampilkan notifikasi.');
+});
+
+/* ---------- Riwayat ---------- */
+function hay(e){
+ var n=e.narasi||{};
+ return [e.date,fmtDate(e.date),e.activities.join(' '),e.learningInput,e.obstacleInput,n.uraian,n.belajar,n.kendala].join(' ').toLowerCase();
+}
+function sortedEntries(asc){
+ var l=Object.keys(entries).map(function(k){return entries[k]});
+ l.sort(function(a,b){return asc?a.date.localeCompare(b.date):b.date.localeCompare(a.date)});
+ return l;
+}
+function renderHistory(){
+ var q=$('#hs-q').value.trim().toLowerCase(),d=$('#hs-date').value,asc=$('#hs-sort').value==='asc';
+ var list=sortedEntries(asc).filter(function(e){return (!q||hay(e).indexOf(q)>-1)&&(!d||e.date===d)});
+ var box=$('#hs-list');
+ if(!list.length){box.innerHTML='<p class="muted" style="margin-top:14px">'+(Object.keys(entries).length?'Tidak ada catatan yang cocok dengan filter.':'Belum ada catatan. Mulai dari tab Catatan.')+'</p>';return}
+ box.innerHTML=list.map(function(e){
+  var n=e.narasi;
+  var det='<h5>Aktivitas</h5>'+(e.activities.length?'<ul style="margin:4px 0;padding-left:20px">'+e.activities.map(function(a){return '<li>'+esc(a)+'</li>'}).join('')+'</ul>':'<p>-</p>');
+  if(n)det+='<h5>Uraian Aktivitas</h5><p>'+esc(n.uraian)+'</p><h5>Pembelajaran yang Diperoleh</h5><p>'+esc(n.belajar)+'</p><h5>Kendala yang Dialami</h5><p>'+esc(n.kendala)+'</p>';
+  return '<div class="hcard" data-iso="'+e.date+'"><h4>'+esc(fmtDate(e.date))+'</h4><div class="prev">'+e.activities.length+' aktivitas'+(n?' · narasi tersedia':'')+' · '+esc(e.activities.slice(0,2).join('; ')).slice(0,110)+'</div><div class="row"><button class="btn sm soft" data-act="view" type="button">Lihat</button><button class="btn sm ghost" data-act="edit" type="button">Edit</button><button class="btn sm danger" data-act="del" type="button">Hapus</button></div><div class="detail" hidden>'+det+'</div></div>';
+ }).join('');
+}
+$('#hs-list').addEventListener('click',function(e){
+ var b=e.target.closest('[data-act]');if(!b)return;
+ var card=b.closest('.hcard'),iso=card.dataset.iso;
+ if(b.dataset.act==='view'){var d=$('.detail',card);d.hidden=!d.hidden;b.textContent=d.hidden?'Lihat':'Tutup'}
+ if(b.dataset.act==='edit')openDate(iso);
+ if(b.dataset.act==='del'&&confirm('Hapus catatan '+fmtDate(iso)+'? Tindakan ini tidak bisa dibatalkan.')){
+  delete entries[iso];persistEntries();renderHistory();renderHome();toast('Catatan dihapus.');
+  if($('#f-date').value===iso)editing=null;
+ }
+});
+['hs-q','hs-date','hs-sort'].forEach(function(id){$('#'+id).addEventListener('input',renderHistory)});
+$('#hs-reset').addEventListener('click',function(){$('#hs-q').value='';$('#hs-date').value='';$('#hs-sort').value='desc';renderHistory()});
+
+function download(name,text,mime){
+ var blob=new Blob([text],{type:mime+';charset=utf-8'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);
+ setTimeout(function(){URL.revokeObjectURL(a.href)},1500);
+}
+function stamp(){return nowWIB().iso}
+$('#ex-txt').addEventListener('click',function(){
+ var l=sortedEntries(true);if(!l.length){toast('Belum ada data untuk diekspor.');return}
+ var out='MAGANGHUB DAILY ACTIVITY ASSISTANT - RIWAYAT AKTIVITAS\nBKKBN Kecamatan Tambaksari\nDiekspor: '+fmtDate(stamp())+'\n\n';
+ l.forEach(function(e){
+  var n=e.narasi||{};
+  out+='==== '+fmtDate(e.date)+' ====\nAktivitas:\n'+e.activities.map(function(a){return '- '+a}).join('\n')+'\n';
+  if(e.narasi)out+='\nUraian Aktivitas:\n'+n.uraian+'\n\nPembelajaran yang Diperoleh:\n'+n.belajar+'\n\nKendala yang Dialami:\n'+n.kendala+'\n';
+  out+='\n';
+ });
+ download('riwayat-maganghub-'+stamp()+'.txt',out,'text/plain');
+});
+$('#ex-csv').addEventListener('click',function(){
+ var l=sortedEntries(true);if(!l.length){toast('Belum ada data untuk diekspor.');return}
+ var q=function(s){return '"'+String(s==null?'':s).replace(/"/g,'""')+'"'};
+ var rows=[['Tanggal','Hari','Aktivitas','Uraian Aktivitas','Pembelajaran yang Diperoleh','Kendala yang Dialami'].map(q).join(',')];
+ l.forEach(function(e){var n=e.narasi||{};rows.push([e.date,DAYS[dowOf(e.date)],e.activities.join(' | '),n.uraian,n.belajar,n.kendala].map(q).join(','))});
+ download('riwayat-maganghub-'+stamp()+'.csv','\ufeff'+rows.join('\r\n'),'text/csv');
+});
+$('#ex-json').addEventListener('click',function(){
+ if(!Object.keys(entries).length){toast('Belum ada data untuk dicadangkan.');return}
+ download('cadangan-maganghub-'+stamp()+'.json',JSON.stringify({app:'maganghub-assistant',version:1,entries:entries},null,2),'application/json');
+});
+$('#im-json').addEventListener('click',function(){$('#im-file').click()});
+$('#im-file').addEventListener('change',function(){
+ var f=this.files[0];if(!f)return;
+ var rd=new FileReader();
+ rd.onload=function(){
+  try{
+   var j=JSON.parse(rd.result),src=j.entries||j,cnt=0,over=0;
+   Object.keys(src).forEach(function(k){if(/^\d{4}-\d{2}-\d{2}$/.test(k)&&src[k]&&Array.isArray(src[k].activities)){cnt++;if(entries[k])over++}});
+   if(!cnt){toast('File tidak berisi catatan yang valid.');return}
+   if(!confirm('Impor '+cnt+' catatan?'+(over?' '+over+' catatan dengan tanggal sama akan ditimpa.':'')))return;
+   Object.keys(src).forEach(function(k){if(/^\d{4}-\d{2}-\d{2}$/.test(k)&&src[k]&&Array.isArray(src[k].activities)){var e=src[k];entries[k]={date:k,activities:e.activities.map(String),learningInput:String(e.learningInput||''),obstacleInput:String(e.obstacleInput||''),narasi:e.narasi&&typeof e.narasi==='object'?{uraian:String(e.narasi.uraian||''),belajar:String(e.narasi.belajar||''),kendala:String(e.narasi.kendala||'')}:null,updated:Date.now()}}});
+   persistEntries();renderHistory();renderHome();toast('Impor selesai.');
+  }catch(err){toast('File JSON tidak valid.')}
+ };
+ rd.readAsText(f);this.value='';
+});
+
+/* ---------- Kalender ---------- */
+var cal={y:0,m:0};
+function renderCalendar(){
+ var n=nowWIB();if(!cal.y){cal.y=n.y;cal.m=n.m}
+ var first=new Date(Date.UTC(cal.y,cal.m-1,1)),start=(first.getUTCDay()+6)%7,dim=new Date(Date.UTC(cal.y,cal.m,0)).getUTCDate();
+ $('#cal-title').textContent=MONTHS[cal.m-1]+' '+cal.y;
+ var h=['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(function(d,i){return '<div class="dh'+(i>4?' we':'')+'">'+d+'</div>'}).join('');
+ for(var i=0;i<start;i++)h+='<button class="empty" tabindex="-1" aria-hidden="true"></button>';
+ for(var d=1;d<=dim;d++){
+  var iso=isoOf(cal.y,cal.m,d),dw=dowOf(iso);
+  var c=[];if(!isWeekday(dw))c.push('we');if(entries[iso])c.push('has');if(iso===n.iso)c.push('today');
+  h+='<button type="button" class="'+c.join(' ')+'" data-iso="'+iso+'" aria-label="'+esc(fmtDate(iso))+(entries[iso]?', ada catatan':'')+'">'+d+'</button>';
+ }
+ $('#cal').innerHTML=h;
+ var s=monthStats(cal.y,cal.m);
+ $('#cal-stats').innerHTML=statTiles([[s.noted+' / '+s.elapsed,'Hari kerja tercatat'],[s.pct+'%','Kelengkapan'],[s.total,'Total catatan bulan ini'],[streak(),'Beruntun (hari kerja)']]);
+ $('#cal-missing').innerHTML=s.missing.length?'<b>Hari kerja belum ada catatan</b><div class="chips">'+s.missing.map(function(i){return '<button type="button" class="chip" data-iso="'+i+'">'+esc(fmtShort(i))+'</button>'}).join('')+'</div>':'<p class="muted">'+(s.elapsed?'Semua hari kerja yang sudah lewat pada bulan ini sudah tercatat.':'Belum ada hari kerja yang berjalan pada bulan ini.')+'</p>';
+}
+function calNav(delta){cal.m+=delta;if(cal.m<1){cal.m=12;cal.y--}if(cal.m>12){cal.m=1;cal.y++}renderCalendar()}
+$('#cal-prev').addEventListener('click',function(){calNav(-1)});
+$('#cal-next').addEventListener('click',function(){calNav(1)});
+$('#v-cal').addEventListener('click',function(e){var b=e.target.closest('[data-iso]');if(b)openDate(b.dataset.iso)});
+
+/* ---------- Mulai ---------- */
+var lastKey='';
+function tick(){
+ var n=nowWIB();
+ $('#h-clock').textContent=p2(n.h)+':'+p2(n.mi)+':'+p2(n.s);
+ var key=n.iso+'-'+n.h;
+ if(key!==lastKey){lastKey=key;renderHome()}
+ checkReminder(n);
+}
+$('#f-date').value=nowWIB().iso;
+loadEntry(nowWIB().iso);
+$('#f-date').value=nowWIB().iso;
+show('home');
+tick();setInterval(tick,1000);
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+ navigator.serviceWorker.register('sw.js').then(function(r){swReg=r}).catch(function(){});
+}
+})();
+</script>
+</body>
+</html>
